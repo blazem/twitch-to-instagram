@@ -1,0 +1,10 @@
+.private/
+node_modules/
+*.streamDeckProfile
+*.dpapi
+*.log
+.env
+.env.*
+!.env.example
+setup-*.png
+SETUP-STATUS.md
