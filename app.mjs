@@ -4,7 +4,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 import { crypt as vaultCrypt } from './vault.mjs';
-import { Obs, photoSize, twitch, graph, cloudinary, cloudUsage, required, waitUntilReady, duplicateDecision } from './core.mjs';
+import { Obs, photoSize, twitch, graph, cloudinary, cloudUsage, required, waitUntilReady, duplicateDecision, formatCaption } from './core.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const PRIVATE = path.join(ROOT, '.private');
@@ -13,8 +13,8 @@ const CONFIG = path.join(PRIVATE, 'settings.dpapi');
 const STATE = path.join(PRIVATE, 'history.json');
 const PORT = 17863;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
-const defaults = { twitchChannel: '', instagramLogin: 'instagram', apiVersion: 'v24.0', armed: false };
-const publicKeys = ['twitchChannel', 'twitchClientId', 'cloudName', 'instagramId', 'instagramLogin', 'apiVersion', 'armed'];
+const defaults = { twitchChannel: '', captionPrefix: '', captionSuffix: '', instagramLogin: 'instagram', apiVersion: 'v24.0', armed: false };
+const publicKeys = ['twitchChannel', 'twitchClientId', 'captionPrefix', 'captionSuffix', 'cloudName', 'instagramId', 'instagramLogin', 'apiVersion', 'armed'];
 const secretKeys = ['twitchClientSecret', 'cloudKey', 'cloudSecret', 'instagramToken'];
 function crypt(mode, value) {
   return vaultCrypt(ROOT, PRIVATE, mode, value);
@@ -74,7 +74,7 @@ async function checkConnections(c) {
   const stream = await twitch(c);
   const account = await graph(c, c.instagramId, { fields: 'id,username' });
   const usage = await cloudUsage(c);
-  status.caption = stream.title; status.account = account.username;
+  status.caption = formatCaption(c, stream.title); status.account = account.username;
   const obs = new Obs(); try { await obs.connect(obsConfig()); await obs.call('GetVersion'); } finally { obs.close(); }
   update(`Connected: Twitch ${stream.live ? 'LIVE' : 'offline'}, Instagram @${account.username}, OBS, and Cloudinary (${usage.plan}). No image was uploaded or published.`);
   return { stream, account };
@@ -93,7 +93,8 @@ async function post() {
   const stream = await twitch(c);
   if (!stream.live) throw new Error('Twitch says your channel is offline. Nothing was posted.');
   if (!stream.title?.trim()) throw new Error('Twitch returned an empty title. Nothing was posted.');
-  status.caption = stream.title;
+  const caption = formatCaption(c, stream.title);
+  status.caption = caption;
   const h = history();
   await cleanup(c, h);
   // Scope duplicate prevention to the Instagram account as well as this Twitch broadcast.
@@ -115,9 +116,9 @@ async function post() {
     const upload = await cloudinary(c, 'upload', { file: imageData, public_id: publicId, overwrite: 'false' });
     if (!upload.secure_url?.startsWith('https://')) throw new Error('Cloudinary did not return a secure image URL.');
     update('Sending the image and Twitch title to Instagram…');
-    const container = await graph(c, `${c.instagramId}/media`, { image_url: upload.secure_url, caption: stream.title }, 'POST');
+    const container = await graph(c, `${c.instagramId}/media`, { image_url: upload.secure_url, caption }, 'POST');
     if (!container.id) throw new Error('Instagram did not return a media container ID.');
-    record = { containerId: container.id, assetId: publicId, caption: stream.title, created: new Date().toISOString(), publishAttempted: false, published: false };
+    record = { containerId: container.id, assetId: publicId, caption, created: new Date().toISOString(), publishAttempted: false, published: false };
     h.streams[key] = record; saveHistory(h);
   }
   const ready = await waitUntilReady(() => graph(c, record.containerId, { fields: 'status_code,status' }), { progress: update });
@@ -185,7 +186,7 @@ const server = http.createServer(async (req, res) => {
     }
     if (pathname === '/check') { await exclusive(() => checkConnections(config())); return send(200, { ok: true }); }
     if (pathname === '/preview') {
-      await exclusive(async () => { update('Capturing a local OBS preview…'); await capture(); const c = config(); if (c.twitchClientId && c.twitchClientSecret) status.caption = (await twitch(c)).title; update('Local preview captured. Nothing was uploaded or published.'); });
+      await exclusive(async () => { update('Capturing a local OBS preview…'); await capture(); const c = config(); if (c.twitchClientId && c.twitchClientSecret) status.caption = formatCaption(c, (await twitch(c)).title); update('Local preview captured. Nothing was uploaded or published.'); });
       return send(200, { ok: true });
     }
     if (pathname === '/arm') {

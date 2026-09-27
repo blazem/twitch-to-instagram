@@ -19,6 +19,14 @@ export function required(config, names) {
   const missing = names.filter(name => !String(config[name] || '').trim());
   if (missing.length) throw new Error(`Finish Setup first: ${missing.join(', ')}.`);
 }
+export function formatCaption(config, title) {
+  const caption = [config.captionPrefix, title, config.captionSuffix]
+    .map(value => String(value || '').trim())
+    .filter(Boolean)
+    .join(' ');
+  if (caption.length > 2200) throw new Error('The Instagram caption exceeds 2,200 characters. Shorten the prefix or suffix.');
+  return caption;
+}
 export async function request(service, url, options = {}) {
   let response;
   try { response = await fetch(url, { ...options, signal: AbortSignal.timeout(45000) }); }

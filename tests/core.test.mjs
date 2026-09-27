@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { waitUntilReady, duplicateDecision, photoSize, obsAuthentication } from '../core.mjs';
+import { waitUntilReady, duplicateDecision, photoSize, obsAuthentication, formatCaption } from '../core.mjs';
 test('waits for processing to finish before allowing publication', async () => {
   let reads = 0, waits = 0;
   const result = await waitUntilReady(async () => ({ status_code: ++reads === 3 ? 'FINISHED' : 'IN_PROGRESS' }), { wait: async () => waits++ });
@@ -24,6 +24,11 @@ test('normal OBS landscape canvas fits Instagram without cropping', () => {
   assert.deepEqual(photoSize(1920, 1080), { imageWidth: 1080, imageHeight: 608 });
   assert.throws(() => photoSize(3440, 1440), /outside Instagram/);
   assert.throws(() => photoSize(0, 1080), /invalid/);
+});
+test('caption combines optional prefix, Twitch title and suffix', () => {
+  assert.equal(formatCaption({ captionPrefix: 'Live now!', captionSuffix: '#dnb' }, 'Rolling session'), 'Live now! Rolling session #dnb');
+  assert.equal(formatCaption({}, 'Rolling session'), 'Rolling session');
+  assert.throws(() => formatCaption({ captionPrefix: 'x'.repeat(2200) }, 'title'), /2,200/);
 });
 test('OBS challenge authentication follows its two-stage SHA-256 protocol', () => {
   const hash = x => createHash('sha256').update(x).digest('base64');

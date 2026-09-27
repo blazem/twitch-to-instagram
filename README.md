@@ -24,7 +24,7 @@ The readiness check addresses Instagram's “The media is not ready to be publis
 
 1. Clone this repository or download its ZIP and extract it into a permanent folder. Do not run from inside the ZIP.
 2. Double-click **Open Setup.vbs**. It opens the local setup page at http://127.0.0.1:17863. If Windows blocks VBScript, run `pwsh -NoProfile -File ./launch.ps1 setup` from this folder.
-3. Enter your Twitch channel and the client ID/secret from a Confidential app registered at https://dev.twitch.tv/console/apps. If a redirect URL is requested, use `http://localhost`.
+3. Enter your Twitch channel and the client ID/secret from a Confidential app registered at https://dev.twitch.tv/console/apps. If a redirect URL is requested, use `http://localhost`. Optionally add caption prefix and suffix text; the helper places them around the current Twitch title with spaces.
 4. Enter your Cloudinary cloud name, API key, and API secret from https://console.cloudinary.com/. Use the Free plan.
 5. At https://developers.facebook.com/apps/, configure Instagram Login for your own Meta app, add your Instagram account as a tester if using development mode, accept the tester invitation, and generate a token. Allow `instagram_business_basic` and `instagram_business_content_publish`. Copy the Instagram account ID and access token into Setup. Do not share the token. Meta account eligibility and app-access requirements still apply.
 6. Choose **Save connections securely**, **Check connections**, and **Capture local preview**. These checks do not upload or publish a screenshot.
