@@ -3,12 +3,17 @@ $ErrorActionPreference = 'Stop'
 $root = $PSScriptRoot
 $node = (Get-Command node.exe -ErrorAction Stop).Source
 $address = 'http://127.0.0.1:17863'
+$tokenFile = Join-Path $root '.private/local-auth-token'
+function Get-LocalHeaders {
+    if (-not (Test-Path -LiteralPath $tokenFile)) { throw 'Local authorization is not ready. Open Setup again.' }
+    return @{ 'X-Local-App' = 'twitch-instagram'; 'X-Local-Token' = (Get-Content -LiteralPath $tokenFile -Raw).Trim() }
+}
 $headers = @{ 'X-Local-App' = 'twitch-instagram' }
-try { $null = Invoke-RestMethod "$address/status" -Headers $headers -TimeoutSec 2 } catch {
+try { $headers = Get-LocalHeaders; $null = Invoke-RestMethod "$address/status" -Headers $headers -TimeoutSec 2 } catch {
     Start-Process -FilePath $node -ArgumentList ('"{0}"' -f (Join-Path $root 'app.mjs')) -WorkingDirectory $root -WindowStyle Hidden
     for ($i = 0; $i -lt 25; $i++) {
         Start-Sleep -Milliseconds 200
-        try { $null = Invoke-RestMethod "$address/status" -Headers $headers -TimeoutSec 1; break } catch { }
+        try { $headers = Get-LocalHeaders; $null = Invoke-RestMethod "$address/status" -Headers $headers -TimeoutSec 1; break } catch { }
     }
 }
 if ($Mode -eq 'post') {

@@ -56,7 +56,7 @@ On the original PC, keep the existing `.private` folder when updating the helper
 
 `npm test` runs offline tests for readiness polling, duplicate handling, image proportions, and encrypted storage. The Windows credential test is skipped on other operating systems. In environments that block Node child-process test workers, use `node --test --test-isolation=none tests/*.test.mjs` with Node 22.8 or later.
 
-The initial setup verified OBS capture and live account connectivity, including Instagram publishing access, and imported the Stream Deck profile. **An actual Instagram publication has not yet been verified end to end.** Treat the first live post as the final integration test.
+The maintainer uses this application on actual live streams. Each new installation must verify its own OBS and provider connections.
 
 Main files: `app.mjs` manages local setup and posting; `core.mjs` handles service APIs and OBS; `vault.mjs` and `secrets.ps1` protect settings; `launch.ps1` and the VBS files launch the helper; `tests/` contains the offline checks.
 
@@ -67,4 +67,19 @@ Main files: `app.mjs` manages local setup and posting; `core.mjs` handles servic
 - [Meta Instagram API collection](https://www.postman.com/meta/workspace/instagram/documentation/23987686-9386f468-7714-490f-9bfc-9442db5c8f00)
 - [Cloudinary uploads](https://cloudinary.com/documentation/upload_images)
 
-No open-source licence has been selected yet. Public visibility lets others inspect the project; it does not itself grant a reuse licence.
+Published under the MIT licence. See [LICENSE](LICENSE).
+
+## Share with friends — quick start
+
+This is an independent Windows helper, not an official Twitch, Meta, OBS or Elgato plugin. Each streamer needs their own Twitch developer credentials, Cloudinary account, and Instagram professional account with Meta publishing access. Never share your own secrets or your `.private/` directory.
+
+1. Install [Node.js 22+](https://nodejs.org/), [PowerShell 7](https://learn.microsoft.com/powershell/scripting/install/installing-powershell-on-windows), and [OBS](https://obsproject.com/).
+2. On GitHub use **Code → Download ZIP**, extract to a permanent folder, and double-click **Open Setup.vbs**. If VBS is blocked, run `pwsh -NoProfile -File ./launch.ps1 setup`.
+3. Follow **Set up** above to configure your own Twitch, Cloudinary, and Instagram/Meta credentials.
+4. Enable OBS WebSocket, run **Check connections**, and inspect **Capture local preview** before enabling posting.
+5. For Stream Deck, add the built-in **System → Open** action pointing at **Post to Instagram.vbs**, or create the included 15-key profile.
+6. While live, press once. The helper prevents duplicate posts for the same Twitch broadcast and Instagram account.
+
+**Troubleshooting:** Instagram requires a professional account and appropriate Meta access; tokens can expire. OBS must actually be streaming to post. Check the Program scene and photo aspect ratio. Cloudinary and Meta service quotas apply. If a publish result is uncertain, check Instagram rather than deleting local history and blindly reposting.
+
+**Local security:** The helper binds only to `127.0.0.1:17863` and uses a random per-install authorization token in the ignored `.private/` folder. The browser setup session uses an HttpOnly SameSite cookie; the launcher reads the same token locally. Do not forward this port or expose it through a reverse proxy. Other software running with your Windows user permissions may be able to read local files.
