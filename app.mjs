@@ -13,6 +13,18 @@ const CONFIG = path.join(PRIVATE, 'settings.dpapi');
 const STATE = path.join(PRIVATE, 'history.json');
 const PORT = 17863;
 const ORIGIN = `http://127.0.0.1:${PORT}`;
+const AUTH_FILE = path.join(PRIVATE, 'local-auth-token');
+let authToken;
+if (fs.existsSync(AUTH_FILE)) authToken = fs.readFileSync(AUTH_FILE, 'utf8').trim();
+else {
+  authToken = randomUUID() + randomUUID();
+  fs.writeFileSync(AUTH_FILE, authToken, { flag: 'wx', mode: 0o600 });
+}
+if (!/^[0-9a-f-]{72}$/.test(authToken)) throw new Error('Invalid local auth token.');
+function authorized(req) {
+  const cookie = (req.headers.cookie || '').split(';').map(x => x.trim()).find(x => x.startsWith('twitch_ig_session='));
+  return req.headers['x-local-token'] === authToken || cookie?.slice('twitch_ig_session='.length) === authToken;
+}
 const defaults = { twitchChannel: '', captionPrefix: '', captionSuffix: '', instagramLogin: 'instagram', apiVersion: 'v24.0', armed: false };
 const publicKeys = ['twitchChannel', 'twitchClientId', 'captionPrefix', 'captionSuffix', 'cloudName', 'instagramId', 'instagramLogin', 'apiVersion', 'armed'];
 const secretKeys = ['twitchClientSecret', 'cloudKey', 'cloudSecret', 'instagramToken'];
@@ -161,11 +173,14 @@ const server = http.createServer(async (req, res) => {
   if (req.headers.origin && req.headers.origin !== ORIGIN) return send(403, { error: 'Local access only.' });
   const pathname = new URL(req.url, ORIGIN).pathname;
   try {
+    if (req.method === 'GET' && pathname === '/') {
+      res.setHeader('Set-Cookie', 'twitch_ig_session=' + authToken + '; HttpOnly; SameSite=Strict; Path=/');
+    }
     if (req.method === 'GET' && ['/', '/ui.js', '/style.css'].includes(pathname)) {
       const file = pathname === '/' ? 'index.html' : pathname.slice(1);
       return send(200, fs.readFileSync(path.join(ROOT, file)), pathname === '/' ? 'text/html; charset=utf-8' : pathname.endsWith('.js') ? 'text/javascript; charset=utf-8' : 'text/css');
     }
-    if (req.headers['x-local-app'] !== 'twitch-instagram') return send(403, { error: 'Open the local setup page.' });
+    if (req.headers['x-local-app'] !== 'twitch-instagram' || !authorized(req)) return send(403, { error: 'Open the local setup page or restart the launcher.' });
     if (req.method === 'GET' && pathname === '/status') return send(200, { ...status, config: safeConfig(config()) });
     if (req.method === 'GET' && pathname === '/preview.jpg') {
       const f = path.join(PRIVATE, 'preview.jpg');
